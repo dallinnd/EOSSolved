@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EoS Mass Solver</title>
+    <title>EoS Mass Solver (Unit Safe)</title>
     <link rel="manifest" href="./manifest.json">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/pyodide/v0.25.0/full/pyodide.js"></script>
@@ -13,52 +13,94 @@
         @keyframes spinner { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
-<body class="bg-gray-100 p-4">
+<body class="bg-gray-100 p-2 md:p-6">
 
-    <div class="max-w-2xl mx-auto bg-white rounded-xl shadow-md overflow-hidden p-6">
+    <div class="max-w-3xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden p-6">
         <h1 class="text-2xl font-bold text-gray-800 mb-2">EoS Mass Calculator</h1>
-        <p class="text-sm text-gray-500 mb-6">Solves for Mass (kg) and Compressibility (Z)</p>
+        <p class="text-sm text-gray-500 mb-6">Select your units. The system converts to SI (Pa, K, m³) automatically.</p>
 
         <div id="status" class="mb-4 text-sm text-blue-600 font-semibold flex items-center">
             <div class="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-4 w-4 mr-2"></div>
-            Loading Python Engine...
+            Initializing Python Engine...
         </div>
 
-        <div class="mb-6">
-            <label class="block text-gray-700 text-sm font-bold mb-2">Select Models:</label>
-            <div class="grid grid-cols-2 gap-2">
-                <label class="inline-flex items-center"><input type="checkbox" class="form-checkbox" value="Pitzer" checked> <span class="ml-2">Pitzer</span></label>
-                <label class="inline-flex items-center"><input type="checkbox" class="form-checkbox" value="VdW" checked> <span class="ml-2">van der Waals</span></label>
-                <label class="inline-flex items-center"><input type="checkbox" class="form-checkbox" value="RK" checked> <span class="ml-2">Redlich-Kwong</span></label>
-                <label class="inline-flex items-center"><input type="checkbox" class="form-checkbox" value="SRK" checked> <span class="ml-2">SRK</span></label>
-                <label class="inline-flex items-center"><input type="checkbox" class="form-checkbox" value="PR" checked> <span class="ml-2">Peng-Robinson</span></label>
-                <label class="inline-flex items-center"><input type="checkbox" class="form-checkbox" value="Lee-Kesler"> <span class="ml-2">Lee-Kesler (Proxy)</span></label>
-                <label class="inline-flex items-center"><input type="checkbox" class="form-checkbox" value="Rackett"> <span class="ml-2">Rackett (Liquid)</span></label>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            
+            <div class="bg-gray-50 p-3 rounded border">
+                <label class="block text-xs font-bold text-gray-500 uppercase">Pressure</label>
+                <div class="flex">
+                    <input type="number" id="in_P" value="1" class="w-2/3 p-2 border rounded-l focus:outline-none focus:border-blue-500">
+                    <select id="unit_P" class="w-1/3 p-2 border border-l-0 rounded-r bg-gray-100 text-sm">
+                        <option value="101325">atm</option>
+                        <option value="100000">bar</option>
+                        <option value="6894.76">psi</option>
+                        <option value="1">Pa</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="bg-gray-50 p-3 rounded border">
+                <label class="block text-xs font-bold text-gray-500 uppercase">Temperature</label>
+                <div class="flex">
+                    <input type="number" id="in_T" value="25" class="w-2/3 p-2 border rounded-l focus:outline-none focus:border-blue-500">
+                    <select id="unit_T" class="w-1/3 p-2 border border-l-0 rounded-r bg-gray-100 text-sm">
+                        <option value="C">°C</option>
+                        <option value="K">K</option>
+                        <option value="F">°F</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="bg-gray-50 p-3 rounded border">
+                <label class="block text-xs font-bold text-gray-500 uppercase">Volume</label>
+                <div class="flex">
+                    <input type="number" id="in_V" value="1000" class="w-2/3 p-2 border rounded-l focus:outline-none focus:border-blue-500">
+                    <select id="unit_V" class="w-1/3 p-2 border border-l-0 rounded-r bg-gray-100 text-sm">
+                        <option value="0.001">Liters</option>
+                        <option value="1">m³</option>
+                        <option value="0.0283168">ft³</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="bg-gray-50 p-3 rounded border">
+                <label class="block text-xs font-bold text-gray-500 uppercase">Phase (for Cubics)</label>
+                <select id="phase_pref" class="w-full p-2 border rounded mt-1 bg-white">
+                    <option value="vapor">Vapor (Gas)</option>
+                    <option value="liquid">Liquid</option>
+                </select>
+                <p class="text-[10px] text-gray-500 mt-1">Selects root if multiple exist (e.g. VLE).</p>
             </div>
         </div>
 
-        <div class="grid grid-cols-2 gap-4 mb-6">
-            <div><label class="block text-xs font-bold text-gray-700">Pressure (Pa)</label><input type="number" id="in_P" value="101325" class="w-full p-2 border rounded"></div>
-            <div><label class="block text-xs font-bold text-gray-700">Temperature (K)</label><input type="number" id="in_T" value="298.15" class="w-full p-2 border rounded"></div>
-            <div><label class="block text-xs font-bold text-gray-700">Volume (m³)</label><input type="number" id="in_V" value="1.0" class="w-full p-2 border rounded"></div>
-            <div><label class="block text-xs font-bold text-gray-700">Critical Temp (K)</label><input type="number" id="in_Tc" value="304.2" class="w-full p-2 border rounded"></div>
-            <div><label class="block text-xs font-bold text-gray-700">Critical Press (Pa)</label><input type="number" id="in_Pc" value="7380000" class="w-full p-2 border rounded"></div>
-            <div><label class="block text-xs font-bold text-gray-700">Omega (ω)</label><input type="number" id="in_w" value="0.224" class="w-full p-2 border rounded"></div>
-            <div><label class="block text-xs font-bold text-gray-700">MW (g/mol)</label><input type="number" id="in_MW" value="44.01" class="w-full p-2 border rounded"></div>
-            <div><label class="block text-xs font-bold text-gray-700">R (J/mol·K)</label><input type="number" id="in_R" value="8.314" class="w-full p-2 border rounded"></div>
+        <h3 class="text-sm font-bold text-gray-700 mb-2 border-b pb-1">Fluid Properties (SI defaults: CO2)</h3>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div><label class="block text-xs text-gray-500">Tc (K)</label><input type="number" id="in_Tc" value="304.2" class="w-full p-2 border rounded"></div>
+            <div><label class="block text-xs text-gray-500">Pc (Pa)</label><input type="number" id="in_Pc" value="7380000" class="w-full p-2 border rounded"></div>
+            <div><label class="block text-xs text-gray-500">Omega (ω)</label><input type="number" id="in_w" value="0.224" class="w-full p-2 border rounded"></div>
+            <div><label class="block text-xs text-gray-500">MW (g/mol)</label><input type="number" id="in_MW" value="44.01" class="w-full p-2 border rounded"></div>
         </div>
 
-        <button onclick="runCalculation()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded transition">
-            Run Calculation
+        <div class="mb-6 flex flex-wrap gap-4 text-sm text-gray-700">
+            <label><input type="checkbox" value="Pitzer" checked> Pitzer</label>
+            <label><input type="checkbox" value="SRK" checked> SRK</label>
+            <label><input type="checkbox" value="PR" checked> Peng-Robinson</label>
+            <label><input type="checkbox" value="Rackett" checked> Rackett (Liq)</label>
+            <label><input type="checkbox" value="VdW"> VdW</label>
+            <label><input type="checkbox" value="RK"> RK</label>
+        </div>
+
+        <button onclick="runCalculation()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded transition shadow-md">
+            Calculate Mass
         </button>
 
-        <div id="results" class="mt-6"></div>
+        <div id="results" class="mt-6 overflow-x-auto"></div>
     </div>
 
     <script type="text/python" id="python-script">
 import math
 
-def solve_cubic(c1, c2, c3):
+def solve_cubic(c1, c2, c3, phase_pref):
     # Solves Z^3 + c1*Z^2 + c2*Z + c3 = 0
     Q = (3*c2 - c1**2)/9
     R = (9*c1*c2 - 27*c3 - 2*c1**3)/54
@@ -70,16 +112,27 @@ def solve_cubic(c1, c2, c3):
         T = (R - math.sqrt(D))**(1/3) if (R - math.sqrt(D)) >= 0 else -((- (R - math.sqrt(D)))**(1/3))
         roots.append(S + T - c1/3)
     else:
+        # Three real roots
         theta = math.acos(R/math.sqrt(-(Q**3)))
         roots.append(2*math.sqrt(-Q)*math.cos(theta/3) - c1/3)
         roots.append(2*math.sqrt(-Q)*math.cos((theta + 2*math.pi)/3) - c1/3)
         roots.append(2*math.sqrt(-Q)*math.cos((theta + 4*math.pi)/3) - c1/3)
     
-    valid = [r for r in roots if r > 0]
+    # Filter physical roots Z > 0
+    valid = [r for r in roots if r > 0.01] # 0.01 threshold to avoid near-zero math errors
     if not valid: return 1.0
-    return max(valid)
+    
+    # Phase Logic
+    if len(valid) == 1:
+        return valid[0]
+    else:
+        # Multiple roots: Smallest is Liquid, Largest is Vapor
+        if phase_pref == 'liquid':
+            return min(valid)
+        else:
+            return max(valid)
 
-def calculate(models_str, P, T, V, Tc, Pc, w, MW, R):
+def calculate(models_str, P, T, V, Tc, Pc, w, MW, R, phase_pref):
     models = models_str.split(',')
     results = []
     Tr = T/Tc
@@ -88,35 +141,41 @@ def calculate(models_str, P, T, V, Tc, Pc, w, MW, R):
     for model in models:
         try:
             Z = 1.0
+            
+            # --- Pitzer (Virial) ---
             if model == "Pitzer":
                 B0 = 0.083 - 0.422/(Tr**1.6)
                 B1 = 0.139 - 0.172/(Tr**4.2)
                 Z = 1 + (B0 + w*B1)*(Pr/Tr)
-            elif model in ["VdW", "RK", "SRK", "PR", "Lee-Kesler"]:
-                eff_model = "SRK" if model == "Lee-Kesler" else model
-                if eff_model == "VdW":
+            
+            # --- Cubics ---
+            elif model in ["VdW", "RK", "SRK", "PR"]:
+                if model == "VdW":
                     A = (27/64)*(Pr/Tr**2); B = (1/8)*(Pr/Tr)
                     c1, c2, c3 = -(1+B), A, -A*B
-                elif eff_model == "RK":
+                elif model == "RK":
                     A = 0.42748 * (Tr**-0.5) * Pr/(Tr**2)
                     B = 0.08664 * Pr/Tr
                     c1, c2, c3 = -1, A-B-B**2, -A*B
-                elif eff_model == "SRK":
+                elif model == "SRK":
                     m = 0.480 + 1.574*w - 0.176*w**2
                     alpha = (1 + m*(1-math.sqrt(Tr)))**2
                     A = 0.42748 * alpha * Pr/(Tr**2)
                     B = 0.08664 * Pr/Tr
                     c1, c2, c3 = -1, A-B-B**2, -A*B
-                elif eff_model == "PR":
+                elif model == "PR":
                     m = 0.37464 + 1.54226*w - 0.26992*w**2
                     alpha = (1 + m*(1-math.sqrt(Tr)))**2
                     A = 0.45724 * alpha * Pr/(Tr**2)
                     B = 0.07780 * Pr/Tr
                     c1, c2, c3 = B-1, A-3*B**2-2*B, B**3+B**2-A*B
-                Z = solve_cubic(c1, c2, c3)
+                
+                Z = solve_cubic(c1, c2, c3, phase_pref)
+            
+            # --- Rackett (Liquid Only) ---
             elif model == "Rackett":
                 if Tr > 1.0:
-                    results.append([model, "N/A (T>Tc)", "N/A"])
+                    results.append([model, "N/A", "Gas (T>Tc)"])
                     continue
                 Z_ra = 0.29056 - 0.08775*w
                 Vc = (R*Tc*Z_ra)/Pc
@@ -124,15 +183,18 @@ def calculate(models_str, P, T, V, Tc, Pc, w, MW, R):
                 n = V/v_liq
                 mass = n * (MW/1000)
                 Z_eff = (P*v_liq)/(R*T)
-                results.append([model, round(Z_eff, 4), round(mass, 4)])
+                results.append([model, f"{Z_eff:.4f}", f"{mass:.4f}"])
                 continue
             
+            # --- Mass Calculation for Gas Models ---
             v = (Z*R*T)/P
             n = V/v
             mass = n * (MW/1000)
-            results.append([model, round(Z, 4), round(mass, 4)])
+            results.append([model, f"{Z:.4f}", f"{mass:.4f}"])
+            
         except Exception as e:
             results.append([model, "Error", str(e)])
+            
     return results
     </script>
 
@@ -141,49 +203,83 @@ def calculate(models_str, P, T, V, Tc, Pc, w, MW, R):
         async function main() {
             try {
                 pyodide = await loadPyodide();
-                document.getElementById("status").innerHTML = '<span class="text-green-600">✔ System Ready (Python Loaded)</span>';
+                document.getElementById("status").innerHTML = '<span class="text-green-600">✔ Ready</span>';
                 await pyodide.runPythonAsync(document.getElementById("python-script").textContent);
             } catch (err) {
-                document.getElementById("status").innerText = "Error loading Python: " + err;
+                document.getElementById("status").innerText = "Err: " + err;
             }
         }
         main();
 
         async function runCalculation() {
-            if (!pyodide) return alert("Python is still loading...");
-            const inputs = {
-                P: parseFloat(document.getElementById('in_P').value),
-                T: parseFloat(document.getElementById('in_T').value),
-                V: parseFloat(document.getElementById('in_V').value),
+            if (!pyodide) return;
+
+            // --- 1. GET RAW INPUTS ---
+            let P_raw = parseFloat(document.getElementById('in_P').value);
+            let T_raw = parseFloat(document.getElementById('in_T').value);
+            let V_raw = parseFloat(document.getElementById('in_V').value);
+            
+            // --- 2. UNIT CONVERSION LOGIC ---
+            // Pressure to Pa
+            let P_factor = parseFloat(document.getElementById('unit_P').value);
+            let P_si = P_raw * P_factor;
+
+            // Temperature to K
+            let T_unit = document.getElementById('unit_T').value;
+            let T_si = T_raw;
+            if (T_unit === 'C') T_si = T_raw + 273.15;
+            if (T_unit === 'F') T_si = (T_raw - 32) * 5/9 + 273.15;
+
+            // Volume to m3
+            let V_factor = parseFloat(document.getElementById('unit_V').value);
+            let V_si = V_raw * V_factor;
+
+            // Constants (Assume user entered these in SI as requested, or defaults)
+            let inputs = {
                 Tc: parseFloat(document.getElementById('in_Tc').value),
                 Pc: parseFloat(document.getElementById('in_Pc').value),
                 w: parseFloat(document.getElementById('in_w').value),
                 MW: parseFloat(document.getElementById('in_MW').value),
-                R: parseFloat(document.getElementById('in_R').value)
+                R: 8.314
             };
+
+            // Phase Preference
+            let phase = document.getElementById('phase_pref').value;
+
+            // --- 3. EXECUTE PYTHON ---
             const checkboxes = document.querySelectorAll('input[type=checkbox]:checked');
             const models = Array.from(checkboxes).map(cb => cb.value).join(',');
-            const cmd = `calculate('${models}', ${inputs.P}, ${inputs.T}, ${inputs.V}, ${inputs.Tc}, ${inputs.Pc}, ${inputs.w}, ${inputs.MW}, ${inputs.R})`;
+            
+            // Debug Log to Console (Check this if numbers look weird)
+            console.log(`Inputs SI: P=${P_si}, T=${T_si}, V=${V_si}, Phase=${phase}`);
+
+            const cmd = `calculate('${models}', ${P_si}, ${T_si}, ${V_si}, ${inputs.Tc}, ${inputs.Pc}, ${inputs.w}, ${inputs.MW}, ${inputs.R}, '${phase}')`;
             const result = (await pyodide.runPythonAsync(cmd)).toJs();
 
+            // --- 4. RENDER ---
             let html = `
-            <table class="min-w-full divide-y divide-gray-200 border">
-                <thead class="bg-gray-50"><tr>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Model</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Comp. Factor (Z)</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Mass (kg)</th>
+            <div class="bg-blue-50 p-2 mb-4 text-xs text-blue-800 rounded">
+                <strong>Simulating:</strong> ${P_si.toFixed(0)} Pa, ${T_si.toFixed(2)} K, ${V_si.toFixed(4)} m³
+            </div>
+            <table class="min-w-full divide-y divide-gray-200 border text-sm">
+                <thead class="bg-gray-100"><tr>
+                    <th class="px-4 py-2 text-left text-gray-600">Model</th>
+                    <th class="px-4 py-2 text-left text-gray-600">Z Factor</th>
+                    <th class="px-4 py-2 text-left text-gray-600">Mass (kg)</th>
                 </tr></thead>
                 <tbody class="bg-white divide-y divide-gray-200">
             `;
+            
             result.forEach(row => {
-                html += `<tr><td class="px-6 py-4 text-sm font-medium">${row[0]}</td><td class="px-6 py-4 text-sm">${row[1]}</td><td class="px-6 py-4 text-sm font-bold">${row[2]}</td></tr>`;
+                html += `<tr>
+                    <td class="px-4 py-2 font-medium text-gray-900">${row[0]}</td>
+                    <td class="px-4 py-2 text-gray-500">${row[1]}</td>
+                    <td class="px-4 py-2 font-bold text-gray-800">${row[2]}</td>
+                </tr>`;
             });
+
             html += '</tbody></table>';
             document.getElementById('results').innerHTML = html;
-        }
-
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('./sw.js').then(reg => console.log('SW Registered', reg.scope));
         }
     </script>
 </body>
