@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cubic EoS Solver</title>
+    <title>Cubic EoS Solver (Verification Mode)</title>
     <link rel="manifest" href="./manifest.json">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/pyodide/v0.25.0/full/pyodide.js"></script>
@@ -21,7 +21,6 @@
         
         <div class="bg-white border-b px-6 pt-6">
             <h1 class="text-2xl font-bold text-gray-800 mb-2">Cubic EoS Solver</h1>
-            <p class="text-xs text-gray-500">Professional Engineering Tool</p>
             
             <div class="flex space-x-6 text-sm mt-4">
                 <button id="tab_mass" onclick="switchTab('mass')" class="active-tab pb-3 focus:outline-none">
@@ -45,10 +44,10 @@
                 <div class="bg-gray-50 p-3 rounded border">
                     <label class="block text-xs font-bold text-gray-600 mb-1">Pressure (P)</label>
                     <div class="flex">
-                        <input type="number" id="in_P" value="1" class="w-2/3 p-2 border rounded-l">
+                        <input type="number" id="in_P" value="2.43" class="w-2/3 p-2 border rounded-l">
                         <select id="unit_P" class="w-1/3 p-2 border border-l-0 rounded-r bg-white text-xs">
-                            <option value="101325" selected>atm</option>
-                            <option value="100000">bar</option>
+                            <option value="100000" selected>bar</option>
+                            <option value="101325">atm</option>
                             <option value="6894.76">psi</option>
                             <option value="1">Pa</option>
                         </select>
@@ -70,7 +69,7 @@
             <div class="bg-blue-50 p-4 rounded border border-blue-200 mb-6">
                 <label id="lbl_dynamic" class="block text-xs font-bold text-blue-800 mb-1 uppercase">Total Volume (V)</label>
                 <div class="flex">
-                    <input type="number" id="in_dynamic" value="1000" class="w-2/3 p-2 border border-blue-300 rounded-l focus:ring-2 focus:ring-blue-500 outline-none">
+                    <input type="number" id="in_dynamic" value="16000" class="w-2/3 p-2 border border-blue-300 rounded-l focus:ring-2 focus:ring-blue-500 outline-none">
                     <select id="unit_dynamic" class="w-1/3 p-2 border border-l-0 border-blue-300 rounded-r bg-white text-xs">
                         </select>
                 </div>
@@ -87,24 +86,28 @@
 
             <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3 flex justify-between">
                 <span>2. Fluid Constants</span>
-                <span class="font-normal normal-case">Default: CO2</span>
+                <span class="font-normal normal-case">Default: n-Butane</span>
             </h3>
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6 bg-gray-50 p-3 rounded border">
+            <div class="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6 bg-gray-50 p-3 rounded border">
                 <div>
                     <label class="block text-[10px] text-gray-500">Tc (K)</label>
-                    <input type="number" id="in_Tc" value="304.2" class="w-full p-1 border rounded text-sm">
+                    <input type="number" id="in_Tc" value="425.1" class="w-full p-1 border rounded text-sm">
                 </div>
                 <div>
                     <label class="block text-[10px] text-gray-500">Pc (bar)</label>
-                    <input type="number" id="in_Pc" value="73.8" class="w-full p-1 border rounded text-sm">
+                    <input type="number" id="in_Pc" value="37.96" class="w-full p-1 border rounded text-sm">
                 </div>
                 <div>
                     <label class="block text-[10px] text-gray-500">Omega (ω)</label>
-                    <input type="number" id="in_w" value="0.224" class="w-full p-1 border rounded text-sm">
+                    <input type="number" id="in_w" value="0.200" class="w-full p-1 border rounded text-sm">
                 </div>
                 <div>
                     <label class="block text-[10px] text-gray-500">MW (g/mol)</label>
-                    <input type="number" id="in_MW" value="44.01" class="w-full p-1 border rounded text-sm">
+                    <input type="number" id="in_MW" value="58.123" class="w-full p-1 border rounded text-sm">
+                </div>
+                <div class="col-span-2">
+                    <label class="block text-[10px] text-gray-500">Gas Constant R (J/mol.K)</label>
+                    <input type="number" id="in_R" value="8.314" class="w-full p-1 border rounded text-sm">
                 </div>
             </div>
 
@@ -117,7 +120,7 @@
     </div>
 
     <script>
-        let currentMode = 'mass';
+        let currentMode = 'mass'; // 'mass' or 'volume'
 
         const unitsVolume = `
             <option value="0.001" selected>Liters</option>
@@ -131,7 +134,7 @@
             <option value="0.453592">lbs</option>
         `;
 
-        // Initialize
+        // Init
         document.getElementById('unit_dynamic').innerHTML = unitsVolume;
 
         function switchTab(mode) {
@@ -147,17 +150,18 @@
                 btnMass.className = "active-tab pb-3 focus:outline-none";
                 btnVol.className = "inactive-tab pb-3 hover:text-gray-800 focus:outline-none";
                 lblDyn.innerText = "TOTAL VOLUME (V)";
-                inpDyn.value = "1000"; // Reset to generic default
+                inpDyn.value = "16000";
                 selDyn.innerHTML = unitsVolume;
                 btnAct.innerText = "Solve for Mass";
             } else {
                 btnVol.className = "active-tab pb-3 focus:outline-none";
                 btnMass.className = "inactive-tab pb-3 hover:text-gray-800 focus:outline-none";
                 lblDyn.innerText = "TOTAL MASS (m)";
-                inpDyn.value = "10"; // Reset to generic default
+                inpDyn.value = "91.5";
                 selDyn.innerHTML = unitsMass;
                 btnAct.innerText = "Solve for Volume";
             }
+            // Clear results on switch
             document.getElementById('results').innerHTML = '';
         }
     </script>
@@ -166,7 +170,9 @@
 import math
 
 def solve_generic_cubic(beta, q, epsilon, sigma, phase_pref):
-    # Coefficients for Z^3 + c1*Z^2 + c2*Z + c3 = 0
+    # Solves: Z = 1 + beta - q*beta * (Z - beta) / ((Z + epsilon*beta)*(Z + sigma*beta))
+    # Equivalent to finding roots of: Z^3 + c1*Z^2 + c2*Z + c3 = 0
+    
     term_es = epsilon + sigma
     term_es_prod = epsilon * sigma
     
@@ -174,11 +180,148 @@ def solve_generic_cubic(beta, q, epsilon, sigma, phase_pref):
     c2 = term_es_prod*(beta**2) - (1 + beta)*term_es*beta + q*beta
     c3 = -(1 + beta)*term_es_prod*(beta**2) - q*(beta**2)
     
-    # Analytic Root Finding (Cardano)
+    # Cardano's Method
     Q_val = (3*c2 - c1**2)/9
     R_val = (9*c1*c2 - 27*c3 - 2*c1**3)/54
     D_val = Q_val**3 + R_val**2
     
     roots = []
     if D_val > 0:
-        S = (R_val + math.sqrt(D_val))**(1
+        S = (R_val + math.sqrt(D_val))**(1/3) if (R_val + math.sqrt(D_val)) >= 0 else -((- (R_val + math.sqrt(D_val)))**(1/3))
+        T = (R_val - math.sqrt(D_val))**(1/3) if (R_val - math.sqrt(D_val)) >= 0 else -((- (R_val - math.sqrt(D_val)))**(1/3))
+        roots.append(S + T - c1/3)
+    else:
+        theta = math.acos(R_val/math.sqrt(-(Q_val**3)))
+        roots.append(2*math.sqrt(-Q_val)*math.cos(theta/3) - c1/3)
+        roots.append(2*math.sqrt(-Q_val)*math.cos((theta + 2*math.pi)/3) - c1/3)
+        roots.append(2*math.sqrt(-Q_val)*math.cos((theta + 4*math.pi)/3) - c1/3)
+    
+    valid = [r for r in roots if r > 0.001] 
+    
+    if not valid: return 1.0
+    if len(valid) == 1: return valid[0]
+    
+    if phase_pref == 'liquid':
+        return min(valid)
+    else:
+        return max(valid)
+
+def run_analysis(mode, P, T, InputVal, Tc, Pc, w, MW, R_gas, phase_pref):
+    Tr = T / Tc
+    Pr = P / Pc
+    
+    output = []
+    
+    models = [
+        {"name": "VdW", "sig": 0, "eps": 0, "Om": 1/8, "Psi": 27/64},
+        {"name": "RK", "sig": 1, "eps": 0, "Om": 0.08664, "Psi": 0.42748},
+        {"name": "SRK", "sig": 1, "eps": 0, "Om": 0.08664, "Psi": 0.42748},
+        {"name": "PR", "sig": 1+math.sqrt(2), "eps": 1-math.sqrt(2), "Om": 0.07780, "Psi": 0.45724}
+    ]
+    
+    for m in models:
+        try:
+            # 1. Alpha
+            alpha = 1.0
+            if m["name"] == "RK": alpha = Tr**-0.5
+            if m["name"] == "SRK":
+                k = 0.480 + 1.574*w - 0.176*w**2
+                alpha = (1 + k*(1 - math.sqrt(Tr)))**2
+            if m["name"] == "PR":
+                k = 0.37464 + 1.54226*w - 0.26992*w**2
+                alpha = (1 + k*(1 - math.sqrt(Tr)))**2
+                
+            # 2. Beta & q
+            beta = m["Om"] * Pr / Tr
+            q = (m["Psi"] * alpha) / (m["Om"] * Tr)
+            
+            # 3. Solve Z
+            Z = solve_generic_cubic(beta, q, m["eps"], m["sig"], phase_pref)
+            
+            # 4. Result
+            v_molar = (Z * R_gas * T) / P
+            
+            if mode == 'mass':
+                # InputVal is Total Volume (m3)
+                n = InputVal / v_molar
+                res_val = n * (MW / 1000.0) # kg
+            else:
+                # InputVal is Total Mass (kg)
+                n = InputVal / (MW / 1000.0)
+                res_val = n * v_molar # m3
+                
+            output.append([m["name"], f"{Z:.4f}", f"{res_val:.4f}"])
+            
+        except Exception as e:
+            output.append([m["name"], "Error", str(e)])
+
+    return output
+    </script>
+
+    <script>
+        let pyodide;
+        async function main() {
+            try {
+                pyodide = await loadPyodide();
+                document.getElementById("status").innerHTML = '<span class="text-green-600">✔ Engine Ready</span>';
+                await pyodide.runPythonAsync(document.getElementById("python-script").textContent);
+            } catch (err) {
+                document.getElementById("status").innerText = "Err: " + err;
+            }
+        }
+        main();
+
+        async function runCalculation() {
+            if (!pyodide) return;
+
+            // 1. Inputs (SI Conversion)
+            let P = parseFloat(document.getElementById('in_P').value) * parseFloat(document.getElementById('unit_P').value);
+            
+            let T_raw = parseFloat(document.getElementById('in_T').value);
+            let T_unit = document.getElementById('unit_T').value;
+            let T = (T_unit === 'C') ? T_raw + 273.15 : (T_unit === 'F') ? (T_raw - 32)*5/9 + 273.15 : T_raw;
+            
+            // Dynamic Input (Vol or Mass)
+            let Dyn_raw = parseFloat(document.getElementById('in_dynamic').value);
+            let Dyn_fac = parseFloat(document.getElementById('unit_dynamic').value);
+            let InputVal = Dyn_raw * Dyn_fac; // m3 or kg
+
+            // Constants
+            let Tc = parseFloat(document.getElementById('in_Tc').value); 
+            let Pc = parseFloat(document.getElementById('in_Pc').value) * 100000; // bar -> Pa
+            let w = parseFloat(document.getElementById('in_w').value);
+            let MW = parseFloat(document.getElementById('in_MW').value);
+            let R = parseFloat(document.getElementById('in_R').value);
+            let phase = document.getElementById('phase_pref').value;
+
+            // 2. Run Python
+            let cmd = `run_analysis('${currentMode}', ${P}, ${T}, ${InputVal}, ${Tc}, ${Pc}, ${w}, ${MW}, ${R}, '${phase}')`;
+            let result = (await pyodide.runPythonAsync(cmd)).toJs();
+
+            // 3. Render
+            let col3_header = (currentMode === 'mass') ? "Calculated Mass (kg)" : "Calculated Volume (m³)";
+            
+            let html = `
+            <table class="min-w-full divide-y divide-gray-200 border text-sm">
+                <thead class="bg-gray-100"><tr>
+                    <th class="px-4 py-2 text-left font-bold text-gray-700">Model</th>
+                    <th class="px-4 py-2 text-left font-bold text-gray-700">Z Factor</th>
+                    <th class="px-4 py-2 text-left font-bold text-gray-700">${col3_header}</th>
+                </tr></thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+            `;
+            
+            result.forEach(row => {
+                html += `<tr>
+                    <td class="px-4 py-2 font-medium">${row[0]}</td>
+                    <td class="px-4 py-2 text-gray-500 font-mono">${row[1]}</td>
+                    <td class="px-4 py-2 font-bold text-blue-600 font-mono">${row[2]}</td>
+                </tr>`;
+            });
+            html += '</tbody></table>';
+            
+            document.getElementById('results').innerHTML = html;
+        }
+    </script>
+</body>
+</html>
